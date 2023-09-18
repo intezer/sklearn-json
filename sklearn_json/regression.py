@@ -1,13 +1,19 @@
-from sklearn.linear_model import LinearRegression, Lasso, Ridge
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, _gb_losses
-from sklearn.neural_network import MLPRegressor
-from sklearn.tree._tree import Tree
-from sklearn.svm import SVR
-from sklearn import dummy
-from sklearn_json import csr
 import numpy as np
 import scipy as sp
+from sklearn import dummy
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import _gb_losses
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree._tree import Tree
+
+from sklearn_json import csr
 
 
 def serialize_linear_regressor(model):
@@ -181,8 +187,10 @@ def serialize_tree(tree):
 def deserialize_tree(tree_dict, n_features, n_classes, n_outputs):
     tree_dict['nodes'] = [tuple(lst) for lst in tree_dict['nodes']]
 
-    names = ['left_child', 'right_child', 'feature', 'threshold', 'impurity', 'n_node_samples', 'weighted_n_node_samples']
-    tree_dict['nodes'] = np.array(tree_dict['nodes'], dtype=np.dtype({'names': names, 'formats': tree_dict['nodes_dtype']}))
+    names = ['left_child', 'right_child', 'feature', 'threshold', 'impurity', 'n_node_samples',
+             'weighted_n_node_samples']
+    tree_dict['nodes'] = np.array(tree_dict['nodes'],
+                                  dtype=np.dtype({'names': names, 'formats': tree_dict['nodes_dtype']}))
     tree_dict['values'] = np.array(tree_dict['values'])
 
     tree = Tree(n_features, np.array([n_classes], dtype=np.intp), n_outputs)
@@ -226,13 +234,63 @@ def deserialize_decision_tree_regressor(model_dict):
     return deserialized_decision_tree
 
 
+def serialize_decision_tree_classifier(model: DecisionTreeClassifier):
+    tree, dtypes = serialize_tree(model.tree_)
+    serialized_model = {
+        'meta': 'decision-tree-classifier',
+        'feature_importances_': model.feature_importances_.tolist(),
+        'max_features_': model.max_features_,
+        'n_features_': model.n_features_,
+        'n_outputs_': model.n_outputs_,
+        'max_leaf_nodes': model.max_leaf_nodes,
+        'min_impurity_decrease': model.min_impurity_decrease,
+        'min_impurity_split': model.min_impurity_split,
+        'min_samples_leaf': model.min_samples_leaf,
+        'min_samples_split': model.min_samples_split,
+        'min_weight_fraction_leaf': model.min_weight_fraction_leaf,
+        'presort': model.presort,
+        'random_state': model.random_state,
+        'tree_': tree
+    }
+
+    # serialized_model.
+
+    tree_dtypes = []
+    for i in range(0, len(dtypes)):
+        tree_dtypes.append(dtypes[i].str)
+
+    serialized_model['tree_']['nodes_dtype'] = tree_dtypes
+
+    return serialized_model
+
+
+def deserialize_decision_tree_classifier(model_dict):
+    deserialized_decision_tree = DecisionTreeClassifier()
+
+    deserialized_decision_tree.max_features_ = model_dict['max_features_']
+    deserialized_decision_tree.n_features_ = model_dict['n_features_']
+    deserialized_decision_tree.n_outputs_ = model_dict['n_outputs_']
+    deserialized_decision_tree.max_leaf_nodes = model_dict['max_leaf_nodes']
+    deserialized_decision_tree.min_impurity_decrease = model_dict['min_impurity_decrease']
+    deserialized_decision_tree.min_impurity_split = model_dict['min_impurity_split']
+    deserialized_decision_tree.min_samples_leaf = model_dict['min_samples_leaf']
+    deserialized_decision_tree.min_samples_split = model_dict['min_samples_split']
+    deserialized_decision_tree.min_weight_fraction_leaf = model_dict['min_weight_fraction_leaf']
+    deserialized_decision_tree.presort = model_dict['presort']
+    deserialized_decision_tree.random_state = model_dict['random_state']
+
+    tree = deserialize_tree(model_dict['tree_'], model_dict['n_features_'], 2, model_dict['n_outputs_'])
+    deserialized_decision_tree.tree_ = tree
+
+    return deserialized_decision_tree
+
+
 def serialize_dummy_regressor(model):
     model.constant = model.constant_.tolist()
     return model.__dict__
 
 
 def serialize_gradient_boosting_regressor(model):
-
     serialized_model = {
         'meta': 'gb-regression',
         'max_features_': model.max_features_,
@@ -243,7 +301,7 @@ def serialize_gradient_boosting_regressor(model):
         'estimators_': []
     }
 
-    if  isinstance(model.init_, dummy.DummyRegressor):
+    if isinstance(model.init_, dummy.DummyRegressor):
         serialized_model['init_'] = serialize_dummy_regressor(model.init_)
         serialized_model['init_']['meta'] = 'dummy'
     elif isinstance(model.init_, str):
@@ -275,7 +333,6 @@ def deserialize_gradient_boosting_regressor(model_dict):
         model.init_.__dict__ = model_dict['init_']
         model.init_.__dict__.pop('meta')
 
-
     model.train_score_ = np.array(model_dict['train_score_'])
     model.max_features_ = model_dict['max_features_']
     model.n_features_ = model_dict['n_features_']
@@ -294,7 +351,6 @@ def deserialize_gradient_boosting_regressor(model_dict):
 
 
 def serialize_random_forest_regressor(model):
-
     serialized_model = {
         'meta': 'rf-regression',
         'max_depth': model.max_depth,
@@ -338,7 +394,7 @@ def deserialize_random_forest_regressor(model_dict):
     if 'oob_score_' in model_dict:
         model.oob_score_ = model_dict['oob_score_']
     if 'oob_prediction_' in model_dict:
-        model.oob_prediction_ =np.array(model_dict['oob_prediction_'])
+        model.oob_prediction_ = np.array(model_dict['oob_prediction_'])
 
     return model
 

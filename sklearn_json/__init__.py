@@ -1,14 +1,30 @@
+import json
+
+import lightgbm
+from sklearn import discriminant_analysis
+from sklearn import svm
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import Perceptron
+from sklearn.linear_model import Ridge
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.naive_bayes import ComplementNB
+from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
+
 from sklearn_json import classification as clf
 from sklearn_json import regression as reg
-from sklearn import svm, discriminant_analysis, dummy
-from sklearn.linear_model import LogisticRegression, Perceptron
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, RandomForestRegressor, GradientBoostingRegressor, _gb_losses
-from sklearn.naive_bayes import BernoulliNB, GaussianNB, MultinomialNB, ComplementNB
-from sklearn.linear_model import LinearRegression, Lasso, Ridge
-from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.svm import SVR
-import json
 
 __version__ = '0.1.0'
 
@@ -40,7 +56,10 @@ def serialize_model(model):
         return clf.serialize_random_forest(model)
     elif isinstance(model, MLPClassifier):
         return clf.serialize_mlp(model)
-
+    elif isinstance(model, lightgbm.LGBMClassifier):
+        return clf.serialize_lgbm_classifier(model)
+    elif isinstance(model, BaggingClassifier):
+        return clf.serialize_bagging_classifier(model)
     elif isinstance(model, LinearRegression):
         return reg.serialize_linear_regressor(model)
     elif isinstance(model, Lasso):
@@ -58,7 +77,8 @@ def serialize_model(model):
     elif isinstance(model, MLPRegressor):
         return reg.serialize_mlp_regressor(model)
     else:
-        raise ModellNotSupported('This model type is not currently supported. Email support@mlrequest.com to request a feature or report a bug.')
+        raise ModellNotSupported(
+            'This model type is not currently supported. Email support@mlrequest.com to request a feature or report a bug.')
 
 
 def deserialize_model(model_dict):
@@ -88,7 +108,10 @@ def deserialize_model(model_dict):
         return clf.deserialize_random_forest(model_dict)
     elif model_dict['meta'] == 'mlp':
         return clf.deserialize_mlp(model_dict)
-
+    elif model_dict['meta'] == 'lgbm':
+        return clf.deserialize_lgbm_classifier(model_dict)
+    elif model_dict['meta'] == 'bagging':
+        return clf.deserialize_bagging_classifier(model_dict)
     elif model_dict['meta'] == 'linear-regression':
         return reg.deserialize_linear_regressor(model_dict)
     elif model_dict['meta'] == 'lasso-regression':
@@ -106,7 +129,8 @@ def deserialize_model(model_dict):
     elif model_dict['meta'] == 'mlp-regression':
         return reg.deserialize_mlp_regressor(model_dict)
     else:
-        raise ModellNotSupported('Model type not supported or corrupt JSON file. Email support@mlrequest.com to request a feature or report a bug.')
+        raise ModellNotSupported(
+            'Model type not supported or corrupt JSON file. Email support@mlrequest.com to request a feature or report a bug.')
 
 
 def to_dict(model):
@@ -126,6 +150,7 @@ def from_json(model_name):
     with open(model_name, 'r') as model_json:
         model_dict = json.load(model_json)
         return deserialize_model(model_dict)
+
 
 class ModellNotSupported(Exception):
     pass
